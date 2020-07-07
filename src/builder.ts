@@ -62,59 +62,8 @@ export async function buildJDK(
       jdkBootDir = await getBootJdk(bootJDKVersion)
       toolPath = await tc.cacheDir(jdkBootDir, toolName, `${bootJDKVersion}`)
       core.addPath(toolPath)
+      exec.exec(`ls`)
     }
-  }
-  await getOpenjdkBuildResource(usePRRef)
-  //got to build Dir
-  process.chdir(`${buildDir}`)
-
-  //build
-  // workround of issue https://github.com/sophia-guo/build-jdk/issues/6
-  core.exportVariable('ARCHITECTURE', 'x64')
-  let configureArgs
-  const fileName = `Open${javaToBuild.toUpperCase()}-jdk_x64_${targetOs}_${impl}_${time}`
-  let fullFileName = `${fileName}.tar.gz`
-  if (`${targetOs}` === 'mac') {
-    configureArgs = "--disable-warnings-as-errors --with-extra-cxxflags='-stdlib=libc++ -mmacosx-version-min=10.8'"
-  } else if (`${targetOs}` === 'linux') {
-    if (`${impl}` === 'hotspot') {
-      configureArgs = '--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors'
-    } else {
-      configureArgs = '--disable-ccache --enable-jitserver --enable-dtrace=auto --disable-warnings-as-errors --with-openssl=/usr/local/openssl-1.0.2 --enable-cuda --with-cuda=/usr/local/cuda-9.0'
-    }
-  } else {
-    if (`${impl}` === 'hotspot') {
-      configureArgs = "--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors"
-    } else {
-      configureArgs = "--with-freemarker-jar='c:/freemarker.jar' --with-openssl='c:/OpenSSL-1.1.1g-x86_64-VS2017' --enable-openssl-bundling --enable-cuda -with-cuda='C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v9.0'"
-    }
-    fullFileName = `${fileName}.zip`
-  }
-
-  await exec.exec(`bash ./makejdk-any-platform.sh \
-  -J '${jdkBootDir}' \
-  --configure-args "${configureArgs}" \
-  -d artifacts \
-  --target-file-name ${fullFileName} \
-  --use-jep319-certs \
-  --build-variant ${impl} \
-  --disable-adopt-branch-safety \
-  ${javaToBuild}`)
-
-  // TODO: update directory for ubuntu
-  await printJavaVersion(javaToBuild)
-  process.chdir(`${workDir}`)
-
-  try {
-    await exec.exec(`find ./ -name ${fullFileName}`)
-  } catch (error) {
-    core.setFailed(`build failed and ${error.message}`)
-  }
-}
-
-async function getOpenjdkBuildResource(usePPRef: Boolean): Promise<void> {
-  if (!usePPRef) {
-    await exec.exec(`git clone --depth 1 https://github.com/AdoptOpenJDK/openjdk-build.git`)
   }
 }
 
@@ -188,16 +137,6 @@ async function installWindowsDepends(javaToBuild: string, impl: string): Promise
 }
 
 async function installLinuxDepends(javaToBuild: string, impl: string): Promise<void> {
-  const ubuntuVersion = await getOsVersion()
-  if (`${ubuntuVersion}` === '16.04') {
-    await exec.exec('sudo apt-get update')
-    await exec.exec(
-      'sudo apt-get install -qq -y --no-install-recommends \
-      python-software-properties \
-      realpath'
-    )
-  } 
-
   await exec.exec('sudo apt-get update')
   await exec.exec(
     'sudo apt-get install -qq -y --no-install-recommends \
@@ -311,62 +250,4 @@ function getBootJdkVersion(javaToBuild: string): string {
     bootJDKVersion = (parseInt(bootJDKVersion) - 1).toString()
   }
   return bootJDKVersion
-}
-
-async function printJavaVersion(javaToBuild: string): Promise<void> {
-  let platform
-  if (`${targetOs}` === 'linux') {
-    platform = 'linux'
-  } else if (`${targetOs}` === 'mac') {
-    platform = 'macosx'
-  } else {
-    platform = 'windows'
-  }
-  let platformRelease = `${platform}-x86_64-normal-server-release`
-
-  if (`${javaToBuild}` === 'jdk') {
-    platformRelease = `${platform}-x86_64-server-release`
-  } else {
-    let version = javaToBuild.replace('jdk', '')
-    version = version.substr(0, version.length - 1)
-    if (parseInt(version) >= 13) platformRelease = `${platform}-x86_64-server-release` 
-  }
-  process.chdir(`${buildDir}`)
-  const jdkdir = `workspace/build/src/build/${platformRelease}/jdk`
-  process.chdir(`${jdkdir}/bin`)
-  await exec.exec(`./java -version`)
-/*   if (javaToBuild === 'jdk8u') {
-    jdkImages = `workspace/build/src/build/${platformRelease}/images/j2sdk-image`
-    process.chdir(`${jdkImages}/jre/bin`)
-  } else {
-    jdkImages = `workspace/build/src/build/${platformRelease}/images/jdk`
-    process.chdir(`${jdkImages}/bin`)
-  } */
-  //set outputs
-  core.setOutput('BuildJDKDir', `${buildDir}/${jdkdir}`)
-}
-
-async function getOsVersion(): Promise<string> {
-  let osVersion = ''
-  const options: ExecOptions = {}
-  let myOutput = ''
-  options.listeners = {
-    stdout: (data: Buffer) => {
-      myOutput += data.toString()
-    }
-  }
-
-  if (IS_WINDOWS) {
-    //TODO
-  } else if (`${targetOs}` === 'mac') {
-    //TODO
-  } else {
-    exec.exec(`lsb_release`, ['-r', '-s'], options)
-    if (myOutput.includes('16.04')) {
-      osVersion = '16.04'
-    } else {
-      osVersion = '18.04'
-    }
-  }
-  return osVersion
 }
