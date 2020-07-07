@@ -55,11 +55,13 @@ export async function buildJDK(
     let toolPath = tc.find(toolName, `${bootJDKVersion}`)
 
     if (toolPath) {
-      core.debug(`BootJDK found in cache: ${toolPath}`)
+      core.info(`BootJDK found in cache: ${toolPath}`)
       jdkBootDir = toolPath
     } else {
+      core.info(`BootJDK not found in cache: ${toolPath}`)
       jdkBootDir = await getBootJdk(bootJDKVersion)
       toolPath = await tc.cacheDir(jdkBootDir, toolName, `${bootJDKVersion}`)
+      core.addPath(toolPath)
     }
   }
   await getOpenjdkBuildResource(usePRRef)

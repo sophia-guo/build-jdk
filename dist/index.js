@@ -3220,12 +3220,14 @@ function buildJDK(javaToBuild, impl, usePRRef) {
             const toolName = `BootJDK`;
             let toolPath = tc.find(toolName, `${bootJDKVersion}`);
             if (toolPath) {
-                core.debug(`BootJDK found in cache: ${toolPath}`);
+                core.info(`BootJDK found in cache: ${toolPath}`);
                 jdkBootDir = toolPath;
             }
             else {
+                core.info(`BootJDK not found in cache: ${toolPath}`);
                 jdkBootDir = yield getBootJdk(bootJDKVersion);
                 toolPath = yield tc.cacheDir(jdkBootDir, toolName, `${bootJDKVersion}`);
+                core.addPath(toolPath);
             }
         }
         yield getOpenjdkBuildResource(usePRRef);
