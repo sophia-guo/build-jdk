@@ -3202,10 +3202,7 @@ function buildJDK(javaToBuild, impl, usePRRef) {
     return __awaiter(this, void 0, void 0, function* () {
         //set parameters and environment
         const time = new Date().toISOString().split('T')[0];
-        yield io.mkdirP('jdk');
-        process.chdir('jdk');
-        yield io.mkdirP('boot');
-        yield io.mkdirP('home');
+        yield io.mkdirP('BootJDK');
         process.chdir(`${workDir}`);
         //pre-install dependencies
         yield installDependencies(javaToBuild, impl);
@@ -3220,7 +3217,16 @@ function buildJDK(javaToBuild, impl, usePRRef) {
             }
         }
         else {
-            jdkBootDir = yield getBootJdk(bootJDKVersion, impl);
+            const toolName = `BootJDK`;
+            let toolPath = tc.find(toolName, `${bootJDKVersion}`);
+            if (toolPath) {
+                core.debug(`BootJDK found in cache: ${toolPath}`);
+                jdkBootDir = toolPath;
+            }
+            else {
+                jdkBootDir = yield getBootJdk(bootJDKVersion);
+                toolPath = yield tc.cacheDir(jdkBootDir, toolName, `${bootJDKVersion}`);
+            }
         }
         yield getOpenjdkBuildResource(usePRRef);
         //got to build Dir
@@ -3417,29 +3423,16 @@ function installLinuxDepends(javaToBuild, impl) {
     });
 }
 //TODO: side effects of using pre-installed jdk on github action virtual machine
-function getBootJdk(bootJDKVersion, impl) {
+function getBootJdk(bootJDKVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         if (parseInt(bootJDKVersion) > 8) {
-            let bootjdkJar;
             // TODO: issue open openj9,mac, 10 ga : https://api.adoptopenjdk.net/v3/binary/latest/10/ga/mac/x64/jdk/openj9/normal/adoptopenjdk doesn't work
-            if (`${impl}` === 'openj9' &&
-                `${bootJDKVersion}` === '10' &&
-                `${targetOs}` === 'mac') {
-                bootjdkJar = yield tc.downloadTool(`https://github.com/AdoptOpenJDK/openjdk10-binaries/releases/download/jdk-10.0.2%2B13.1/OpenJDK10U-jdk_x64_mac_hotspot_10.0.2_13.tar.gz`);
-            }
-            else {
-                bootjdkJar = yield tc.downloadTool(`https://api.adoptopenjdk.net/v3/binary/latest/${bootJDKVersion}/ga/${targetOs}/x64/jdk/${impl}/normal/adoptopenjdk`);
-            }
+            const bootjdkJar = yield tc.downloadTool(`https://api.adoptopenjdk.net/v3/binary/latest/${bootJDKVersion}/ga/${targetOs}/x64/jdk/hotspot/normal/adoptopenjdk`);
             if (`${targetOs}` === 'mac') {
-                yield exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=3`);
+                yield exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./BootJDK --strip=3`);
             }
             else if (`${targetOs}` === 'linux') {
-                if (`${bootJDKVersion}` === '10' && `${impl}` === 'openj9') {
-                    yield exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=2`); // TODO : issue open as this is packaged differently
-                }
-                else {
-                    yield exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=1`);
-                }
+                yield exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./BootJDK --strip=1`);
             }
             else {
                 // windows jdk is zip file
@@ -3447,8 +3440,8 @@ function getBootJdk(bootJDKVersion, impl) {
                 yield tc.extractZip(bootjdkJar, `${tempDir}`);
                 const tempJDKDir = path.join(tempDir, fs.readdirSync(tempDir)[0]);
                 process.chdir('c:\\');
-                yield io.mkdirP('jdkboot');
-                yield exec.exec(`mv ${tempJDKDir}/* c:\\jdkboot`);
+                yield io.mkdirP('BootJDK');
+                yield exec.exec(`mv ${tempJDKDir}/* c:\\BootJDK`);
                 process.chdir(`${workDir}`);
             }
             yield io.rmRF(`${bootjdkJar}`);
@@ -3456,14 +3449,14 @@ function getBootJdk(bootJDKVersion, impl) {
         else {
             //TODO : need to update for jdk8
             const jdk8Jar = yield tc.downloadTool('https://api.adoptopenjdk.net/v2/binary/releases/openjdk8?os=mac&release=latest&arch=x64&heap_size=normal&type=jdk&openjdk_impl=hotspot');
-            yield exec.exec(`sudo tar -xzf ${jdk8Jar} -C ./jdk/home --strip=3`);
+            yield exec.exec(`sudo tar -xzf ${jdk8Jar} -C ./BootJDK --strip=3`);
             yield io.rmRF(`${jdk8Jar}`);
         }
         if (IS_WINDOWS) {
-            return 'c:/jdkboot';
+            return 'c:/BootJDK';
         }
         else {
-            return `${workDir}/jdk/boot`;
+            return `${workDir}/BootJDK`;
         }
     });
 }

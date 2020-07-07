@@ -35,10 +35,7 @@ export async function buildJDK(
 ): Promise<void> {
   //set parameters and environment
   const time = new Date().toISOString().split('T')[0]
-  await io.mkdirP('jdk')
-  process.chdir('jdk')
-  await io.mkdirP('boot')
-  await io.mkdirP('home')
+  await io.mkdirP('BootJDK')
   process.chdir(`${workDir}`)
 
   //pre-install dependencies
@@ -54,13 +51,21 @@ export async function buildJDK(
       jdkBootDir = jdkBootDir.replace(/ProgramFiles/g, 'Progra~1')
     }
   } else {
-    jdkBootDir = await getBootJdk(bootJDKVersion, impl)
+    const toolName = `BootJDK`
+    let toolPath = tc.find(toolName, `${bootJDKVersion}`)
+
+    if (toolPath) {
+      core.debug(`BootJDK found in cache: ${toolPath}`)
+      jdkBootDir = toolPath
+    } else {
+      jdkBootDir = await getBootJdk(bootJDKVersion)
+      toolPath = await tc.cacheDir(jdkBootDir, toolName, `${bootJDKVersion}`)
+    }
   }
-  
   await getOpenjdkBuildResource(usePRRef)
   //got to build Dir
   process.chdir(`${buildDir}`)
-  
+
   //build
   // workround of issue https://github.com/sophia-guo/build-jdk/issues/6
   core.exportVariable('ARCHITECTURE', 'x64')
@@ -258,51 +263,38 @@ async function installLinuxDepends(javaToBuild: string, impl: string): Promise<v
 }
 
 //TODO: side effects of using pre-installed jdk on github action virtual machine
-async function getBootJdk(bootJDKVersion: string, impl: string): Promise<string> {
-    if (parseInt(bootJDKVersion) > 8) {
-    let bootjdkJar
+async function getBootJdk(bootJDKVersion: string): Promise<string> {
+  if (parseInt(bootJDKVersion) > 8) {
     // TODO: issue open openj9,mac, 10 ga : https://api.adoptopenjdk.net/v3/binary/latest/10/ga/mac/x64/jdk/openj9/normal/adoptopenjdk doesn't work
-    if (
-      `${impl}` === 'openj9' &&
-      `${bootJDKVersion}` === '10' &&
-      `${targetOs}` === 'mac'
-    ) {
-      bootjdkJar = await tc.downloadTool(`https://github.com/AdoptOpenJDK/openjdk10-binaries/releases/download/jdk-10.0.2%2B13.1/OpenJDK10U-jdk_x64_mac_hotspot_10.0.2_13.tar.gz`)
-    } else {
-      bootjdkJar = await tc.downloadTool(`https://api.adoptopenjdk.net/v3/binary/latest/${bootJDKVersion}/ga/${targetOs}/x64/jdk/${impl}/normal/adoptopenjdk`)
-    }
+    const bootjdkJar = await tc.downloadTool(`https://api.adoptopenjdk.net/v3/binary/latest/${bootJDKVersion}/ga/${targetOs}/x64/jdk/hotspot/normal/adoptopenjdk`)
 
     if (`${targetOs}` === 'mac') {
-      await exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=3`)
+      await exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./BootJDK --strip=3`)
     } else if (`${targetOs}` === 'linux') {
-      if (`${bootJDKVersion}` === '10' && `${impl}` === 'openj9') {
-        await exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=2`) // TODO : issue open as this is packaged differently
-      } else {
-        await exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./jdk/boot --strip=1`)
-      }
+      await exec.exec(`sudo tar -xzf ${bootjdkJar} -C ./BootJDK --strip=1`)
     } else {
       // windows jdk is zip file
       const tempDir = path.join(tempDirectory, 'temp_' + Math.floor(Math.random() * 2000000000))
       await tc.extractZip(bootjdkJar, `${tempDir}`)
       const tempJDKDir = path.join(tempDir, fs.readdirSync(tempDir)[0])
       process.chdir('c:\\')
-      await io.mkdirP('jdkboot')
-      await exec.exec(`mv ${tempJDKDir}/* c:\\jdkboot`)
+      await io.mkdirP('BootJDK')
+      await exec.exec(`mv ${tempJDKDir}/* c:\\BootJDK`)
       process.chdir(`${workDir}`)
     }
     await io.rmRF(`${bootjdkJar}`)
   } else {
     //TODO : need to update for jdk8
     const jdk8Jar = await tc.downloadTool('https://api.adoptopenjdk.net/v2/binary/releases/openjdk8?os=mac&release=latest&arch=x64&heap_size=normal&type=jdk&openjdk_impl=hotspot')
-    await exec.exec(`sudo tar -xzf ${jdk8Jar} -C ./jdk/home --strip=3`)
+    await exec.exec(`sudo tar -xzf ${jdk8Jar} -C ./BootJDK --strip=3`)
     await io.rmRF(`${jdk8Jar}`)
   }
 
   if (IS_WINDOWS) {
-    return 'c:/jdkboot'
+    return 'c:/BootJDK'
   } else {
-    return `${workDir}/jdk/boot`
-  } 
+    return `${workDir}/BootJDK`
+  }
 }
 
 function getBootJdkVersion(javaToBuild: string): string {
