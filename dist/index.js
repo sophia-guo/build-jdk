@@ -3232,7 +3232,7 @@ function buildJDK(javaToBuild, impl, usePRRef) {
         const fileName = `Open${javaToBuild.toUpperCase()}-jdk_x64_${targetOs}_${impl}_${time}`;
         let fullFileName = `${fileName}.tar.gz`;
         if (`${targetOs}` === 'mac') {
-            configureArgs = "--disable-warnings-as-errors --with-extra-cxxflags='-stdlib=libc++ -mmacosx-version-min=10.8'";
+            configureArgs = "--disable-warnings-as-errors --enable-dtrace=auto --with-extra-cxxflags='-stdlib=libc++ -mmacosx-version-min=10.8'";
         }
         else if (`${targetOs}` === 'linux') {
             if (`${impl}` === 'hotspot') {
@@ -3251,8 +3251,15 @@ function buildJDK(javaToBuild, impl, usePRRef) {
             }
             fullFileName = `${fileName}.zip`;
         }
+        if (javaToBuild === 'jdk15u') {
+            core.info(`enable ${configureArgs} `);
+            configureArgs = configureArgs.replace('--enable-dtrace=auto', '--enable-dtrace');
+            configureArgs = configureArgs.replace('--disable-ccache', '--enable-ccache');
+            core.info(`replace ${configureArgs} `);
+        }
         yield exec.exec(`bash ./makejdk-any-platform.sh \
   -J "${jdkBootDir}" \
+  --clean-git-repo \
   --configure-args "${configureArgs}" \
   -d artifacts \
   --target-file-name ${fullFileName} \
