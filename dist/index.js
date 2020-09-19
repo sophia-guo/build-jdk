@@ -3545,6 +3545,31 @@ function getOsVersion() {
         return osVersion;
     });
 }
+function buildJDK2(javaToBuild, impl, usePRRef) {
+    return __awaiter(this, void 0, void 0, function* () {
+        //set parameters and environment
+        const time = new Date().toISOString().split('T')[0];
+        yield io.mkdirP('jdk');
+        process.chdir('jdk');
+        yield io.mkdirP('boot');
+        yield io.mkdirP('home');
+        process.chdir(`${workDir}`);
+        //pre-install dependencies
+        yield installDependencies(javaToBuild, impl);
+        yield getOpenjdkBuildResource(usePRRef);
+        process.chdir(`${buildDir}`);
+        core.exportVariable('JAVA_TO_BUILD', javaToBuild);
+        core.exportVariable('ARCHITECTURE', 'x64');
+        core.exportVariable('VARIANT', impl);
+        core.exportVariable('TARGET_OS', targetOs);
+        core.exportVariable('FILENAME', 'OpenJDK.tar.gz');
+        yield exec.exec(`bash ./build-farm/make-adopt-build-farm.sh`);
+        // TODO: update directory for ubuntu
+        yield printJavaVersion(javaToBuild);
+        process.chdir(`${workDir}`);
+    });
+}
+exports.buildJDK2 = buildJDK2;
 
 
 /***/ }),
@@ -4920,7 +4945,7 @@ function run() {
             const javaToBuild = core.getInput('javaToBuild', { required: false });
             const impl = core.getInput('impl', { required: false });
             const usePRRef = core.getInput('usePRRef') === 'true';
-            yield builder.buildJDK(javaToBuild, impl, usePRRef);
+            yield builder.buildJDK2(javaToBuild, impl, usePRRef);
         }
         catch (error) {
             core.setFailed(error.message);

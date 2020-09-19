@@ -376,3 +376,33 @@ async function getOsVersion(): Promise<string> {
   }
   return osVersion
 }
+
+export async function buildJDK2(
+  javaToBuild: string,
+  impl: string,
+  usePRRef: boolean
+): Promise<void> {
+  //set parameters and environment
+  const time = new Date().toISOString().split('T')[0]
+  await io.mkdirP('jdk')
+  process.chdir('jdk')
+  await io.mkdirP('boot')
+  await io.mkdirP('home')
+  process.chdir(`${workDir}`)
+
+  //pre-install dependencies
+  await installDependencies(javaToBuild, impl)
+  await getOpenjdkBuildResource(usePRRef)
+  process.chdir(`${buildDir}`)
+  core.exportVariable('JAVA_TO_BUILD', javaToBuild)
+  core.exportVariable('ARCHITECTURE', 'x64')
+  core.exportVariable('VARIANT', impl)
+  core.exportVariable('TARGET_OS', targetOs)
+  core.exportVariable('FILENAME', 'OpenJDK.tar.gz')
+
+  await exec.exec(`bash ./build-farm/make-adopt-build-farm.sh`)
+
+  // TODO: update directory for ubuntu
+  await printJavaVersion(javaToBuild)
+  process.chdir(`${workDir}`)
+}

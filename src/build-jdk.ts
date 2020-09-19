@@ -6,7 +6,7 @@ async function run(): Promise<void> {
     const javaToBuild = core.getInput('javaToBuild', {required: false})
     const impl = core.getInput('impl', {required: false})
     const usePRRef = core.getInput('usePRRef') === 'true'
-    await builder.buildJDK(javaToBuild, impl, usePRRef)
+    await builder.buildJDK2(javaToBuild, impl, usePRRef)
   } catch (error) {
     core.setFailed(error.message)
   }
