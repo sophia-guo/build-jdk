@@ -350,6 +350,9 @@ async function printJavaVersion(javaToBuild: string): Promise<void> {
   } */
   //set outputs
   core.setOutput('BuildJDKDir', `${buildDir}/${jdkdir}`)
+  process.chdir(`${buildDir}`)
+  await exec.exec(`sudo tar -czvf hotspot11linuxJDKclass.tar.gz ./workspace/build/src/build/linux-x86_64-normal-server-release/jdk/modules/`)
+  await exec.exec(`sudo tar -czvf hotspot11linuxJDKsource.tar.gz ./workspace/build/src/src/`)
 }
 
 async function getOsVersion(): Promise<string> {
