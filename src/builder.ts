@@ -45,7 +45,7 @@ export async function buildJDK(
   await installDependencies(javaToBuild, impl)
   let jdkBootDir = ''
   const bootJDKVersion = getBootJdkVersion(javaToBuild)
-
+  
   if (`JAVA_HOME_${bootJDKVersion}_X64` in process.env) {
     jdkBootDir = process.env[`JAVA_HOME_${bootJDKVersion}_X64`] as string
     if (IS_WINDOWS) {
@@ -71,13 +71,25 @@ export async function buildJDK(
     configureArgs = "--disable-warnings-as-errors --with-extra-cxxflags='-stdlib=libc++ -mmacosx-version-min=10.8'"
   } else if (`${targetOs}` === 'linux') {
     if (`${impl}` === 'hotspot') {
-      configureArgs = '--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors'
+      if (parseInt(bootJDKVersion) > 13) {
+        configureArgs = '--disable-ccache --enable-dtrace --disable-warnings-as-errors'
+      } else {
+        configureArgs = '--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors'
+      }
     } else {
-      configureArgs = '--disable-ccache --enable-jitserver --enable-dtrace=auto --disable-warnings-as-errors --with-openssl=/usr/local/openssl-1.0.2 --enable-cuda --with-cuda=/usr/local/cuda-9.0'
+      if (parseInt(bootJDKVersion) > 13) {
+        configureArgs = '--disable-ccache --enable-dtrace --disable-warnings-as-errors --enable-jitserver --with-openssl=/usr/local/openssl-1.0.2 --enable-cuda --with-cuda=/usr/local/cuda-9.0'
+      } else {
+        configureArgs = '--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors --enable-jitserver --with-openssl=/usr/local/openssl-1.0.2 --enable-cuda --with-cuda=/usr/local/cuda-9.0'
+      }
     }
   } else {
     if (`${impl}` === 'hotspot') {
-      configureArgs = "--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors"
+      if (parseInt(bootJDKVersion) > 13) {
+        configureArgs = '--disable-ccache --enable-dtrace --disable-warnings-as-errors'
+      } else {
+        configureArgs = '--disable-ccache --enable-dtrace=auto --disable-warnings-as-errors'
+      }
     } else {
       configureArgs = "--with-freemarker-jar='c:/freemarker.jar' --with-openssl='c:/OpenSSL-1.1.1g-x86_64-VS2017' --enable-openssl-bundling --enable-cuda -with-cuda='C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v9.0'"
     }
@@ -310,10 +322,12 @@ function getBootJdkVersion(javaToBuild: string): string {
 
   //latest jdk need update continually
   if (`${javaToBuild}` === 'jdk') {
-    bootJDKVersion = '15'
+    bootJDKVersion = '16'
   } else {
     bootJDKVersion = javaToBuild.replace('jdk', '')
-    bootJDKVersion = bootJDKVersion.substr(0, bootJDKVersion.length - 1)
+    if (bootJDKVersion.includes('u')) {
+      bootJDKVersion = bootJDKVersion.substr(0, bootJDKVersion.length - 1)
+    }
     bootJDKVersion = (parseInt(bootJDKVersion) - 1).toString()
   }
   return bootJDKVersion
