@@ -10,7 +10,7 @@ import {ExecOptions} from '@actions/exec/lib/interfaces'
 let tempDirectory = process.env['RUNNER_TEMP'] || ''
 const workDir = process.env['GITHUB_WORKSPACE']
 //const dependenciesDir =  `${workDir}/tmp`
-const buildDir = `${workDir}/openjdk-build`
+const buildDir = `${workDir}/temurin-build`
 const IS_WINDOWS = process.platform === 'win32'
 const targetOs = IS_WINDOWS ? 'windows' : process.platform === 'darwin' ? 'mac' : 'linux'
 
@@ -118,7 +118,7 @@ export async function buildJDK(
 
 async function getOpenjdkBuildResource(usePPRef: Boolean): Promise<void> {
   if (!usePPRef) {
-    await exec.exec(`git clone --depth 1 https://github.com/AdoptOpenJDK/openjdk-build.git`)
+    await exec.exec(`git clone --depth 1 https://github.com/adoptium/temurin-build.git`)
   }
 }
 
@@ -222,6 +222,8 @@ async function installLinuxDepends(javaToBuild: string, impl: string): Promise<v
     make \
     systemtap-sdt-dev \
     libnuma-dev \
+    gcc-7 \
+    g++-7 \
     gcc-multilib \
     pkg-config'
   )
@@ -264,8 +266,8 @@ async function installLinuxDepends(javaToBuild: string, impl: string): Promise<v
 
   await exec.exec(`sudo ln -s /usr/lib/x86_64-linux-gnu /usr/lib64`)
   await exec.exec(`sudo ln -s /usr/include/x86_64-linux-gnu/* /usr/local/include`)
-  await exec.exec(`sudo ln -sf /usr/local/bin/g++-7.3 /usr/bin/g++`)
-  await exec.exec(`sudo ln -sf /usr/local/bin/gcc-7.3 /usr/bin/gcc`)
+  await exec.exec(`sudo ln -sf /usr/local/bin/g++-7 /usr/bin/g++`)
+  await exec.exec(`sudo ln -sf /usr/local/bin/gcc-7 /usr/bin/gcc`)
   process.chdir(`${workDir}`)
 }
 

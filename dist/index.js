@@ -3299,7 +3299,7 @@ const childProcess = __importStar(__webpack_require__(129));
 let tempDirectory = process.env['RUNNER_TEMP'] || '';
 const workDir = process.env['GITHUB_WORKSPACE'];
 //const dependenciesDir =  `${workDir}/tmp`
-const buildDir = `${workDir}/openjdk-build`;
+const buildDir = `${workDir}/temurin-build`;
 const IS_WINDOWS = process.platform === 'win32';
 const targetOs = IS_WINDOWS ? 'windows' : process.platform === 'darwin' ? 'mac' : 'linux';
 if (!tempDirectory) {
@@ -3403,7 +3403,7 @@ exports.buildJDK = buildJDK;
 function getOpenjdkBuildResource(usePPRef) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!usePPRef) {
-            yield exec.exec(`git clone --depth 1 https://github.com/AdoptOpenJDK/openjdk-build.git`);
+            yield exec.exec(`git clone --depth 1 https://github.com/adoptium/temurin-build.git`);
         }
     });
 }
@@ -3507,6 +3507,8 @@ function installLinuxDepends(javaToBuild, impl) {
     make \
     systemtap-sdt-dev \
     libnuma-dev \
+    gcc-7 \
+    g++-7 \
     gcc-multilib \
     pkg-config');
         if (javaToBuild === 'jdk8u') {
@@ -3540,8 +3542,8 @@ function installLinuxDepends(javaToBuild, impl) {
         yield io.rmRF(`${gccBinary}`);
         yield exec.exec(`sudo ln -s /usr/lib/x86_64-linux-gnu /usr/lib64`);
         yield exec.exec(`sudo ln -s /usr/include/x86_64-linux-gnu/* /usr/local/include`);
-        yield exec.exec(`sudo ln -sf /usr/local/bin/g++-7.3 /usr/bin/g++`);
-        yield exec.exec(`sudo ln -sf /usr/local/bin/gcc-7.3 /usr/bin/gcc`);
+        yield exec.exec(`sudo ln -sf /usr/local/bin/g++-7 /usr/bin/g++`);
+        yield exec.exec(`sudo ln -sf /usr/local/bin/gcc-7 /usr/bin/gcc`);
         process.chdir(`${workDir}`);
     });
 }
